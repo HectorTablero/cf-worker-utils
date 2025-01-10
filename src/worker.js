@@ -44,7 +44,7 @@ export class UtilsWorker extends WorkerEntrypoint {
 
 		if (!originalObj) originalObj = obj;
 
-		if (Array.isArray(query)) return query.every((subFilter) => evaluateQuery(obj, subFilter, originalObj));
+		if (Array.isArray(query)) return query.every((subFilter) => this.evaluateQuery(obj, subFilter, originalObj));
 
 		if (typeof query !== 'object') return false;
 
@@ -56,13 +56,13 @@ export class UtilsWorker extends WorkerEntrypoint {
 
 			if (key === '$and') {
 				if (!Array.isArray(value)) throw new Error('$and requires an array, but got ' + typeof value);
-				if (!value.every((subFilter) => evaluateQuery(obj, subFilter, originalObj))) return false;
+				if (!value.every((subFilter) => this.evaluateQuery(obj, subFilter, originalObj))) return false;
 			} else if (key === '$or') {
 				if (!Array.isArray(value)) throw new Error('$or requires an array, but got ' + typeof value);
-				if (!value.some((subFilter) => evaluateQuery(obj, subFilter, originalObj))) return false;
+				if (!value.some((subFilter) => this.evaluateQuery(obj, subFilter, originalObj))) return false;
 			} else if (key === '$not') {
 				if (typeof value !== 'object' || value === null) throw new Error('$not requires an object, but got ' + typeof value);
-				if (evaluateQuery(obj, value, originalObj)) return false;
+				if (this.evaluateQuery(obj, value, originalObj)) return false;
 			} else if (key.startsWith('$')) {
 				switch (key) {
 					case '$exists':
@@ -107,7 +107,7 @@ export class UtilsWorker extends WorkerEntrypoint {
 				const nestedValue = key.includes('.') || key.includes('[') ? readVar(obj, key) : obj[key];
 
 				if (typeof value === 'object' && value !== null) {
-					if (!evaluateQuery(nestedValue, value, originalObj)) return false;
+					if (!this.evaluateQuery(nestedValue, value, originalObj)) return false;
 				} else {
 					if (nestedValue !== value) return false;
 				}
