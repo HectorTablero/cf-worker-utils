@@ -33,6 +33,7 @@ export class UtilsWorker extends WorkerEntrypoint {
 	}
 
 	async evaluateQuery(obj, query, originalObj = null) {
+		console.log(obj, query);
 		/**
 			Evaluates a MongoDB-like filter query against an object.
 			
@@ -44,7 +45,7 @@ export class UtilsWorker extends WorkerEntrypoint {
 
 		if (!originalObj) originalObj = obj;
 
-		if (Array.isArray(query)) return query.every((subFilter) => this.evaluateQuery(obj, subFilter, originalObj));
+		if (Array.isArray(query)) return query.every(async (subFilter) => await this.evaluateQuery(obj, subFilter, originalObj));
 
 		if (typeof query !== 'object') return false;
 
@@ -56,17 +57,17 @@ export class UtilsWorker extends WorkerEntrypoint {
 
 			if (key === '$and') {
 				if (!Array.isArray(value)) throw new Error('$and requires an array, but got ' + typeof value);
-				if (!value.every((subFilter) => this.evaluateQuery(obj, subFilter, originalObj))) return false;
+				if (!value.every(async (subFilter) => await this.evaluateQuery(obj, subFilter, originalObj))) return false;
 			} else if (key === '$or') {
 				if (!Array.isArray(value)) throw new Error('$or requires an array, but got ' + typeof value);
-				if (!value.some((subFilter) => this.evaluateQuery(obj, subFilter, originalObj))) return false;
+				if (!value.some(async (subFilter) => await this.evaluateQuery(obj, subFilter, originalObj))) return false;
 			} else if (key === '$not') {
 				if (typeof value !== 'object' || value === null) throw new Error('$not requires an object, but got ' + typeof value);
-				if (this.evaluateQuery(obj, value, originalObj)) return false;
+				if (await this.evaluateQuery(obj, value, originalObj)) return false;
 			} else if (key.startsWith('$')) {
 				switch (key) {
 					case '$exists':
-						if (obj === undefined) return false;
+						if (readVar(originalObj, value) === undefined) return false;
 						break;
 					case '$re':
 					case '$regex':
@@ -107,7 +108,7 @@ export class UtilsWorker extends WorkerEntrypoint {
 				const nestedValue = key.includes('.') || key.includes('[') ? readVar(obj, key) : obj[key];
 
 				if (typeof value === 'object' && value !== null) {
-					if (!this.evaluateQuery(nestedValue, value, originalObj)) return false;
+					if (!(await this.evaluateQuery(nestedValue, value, originalObj))) return false;
 				} else {
 					if (nestedValue !== value) return false;
 				}
